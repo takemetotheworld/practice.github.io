@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>맥주잔 게임</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --glass-edge: #c9d6e3;
+      --glass-shadow: #7a8a9e;
+      --beer-dark: #b8860b;
+      --beer-mid: #d4a84b;
+      --beer-light: #e8c547;
+      --foam: #f5e6c8;
+      --selected-glow: rgba(233, 69, 96, 0.6);
+      --empty-glass: rgba(201, 214, 227, 0.25);
+      --text: #2c2416;
+      --radius: 4px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #e94560;
+    }
+
+    .info {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 1rem;
+    }
+
+    .sum-display {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      min-height: 1.5em;
+    }
+
+    .sum-display .value {
+      color: #4ecca3;
+    }
+
+    .sum-display .valid {
+      color: #4ecca3;
+    }
+
+    .sum-display .invalid {
+      color: #e94560;
+    }
+
+    .grid-wrap {
+      overflow: auto;
+      max-width: 100%;
+      padding: 4px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(15, 38px);
+      grid-template-rows: repeat(10, 48px);
+      gap: 6px;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .cell {
+      width: 38px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, filter 0.15s ease;
+      position: relative;
+      overflow: hidden;
+      /* 맥주잔 외곽: 위가 넓은 잔 형태 */
+      border-radius: 3px 3px 8px 8px;
+      border: 2px solid var(--glass-edge);
+      border-top-width: 3px;
+      background: linear-gradient(165deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.1) 30%, transparent 60%);
+      box-shadow:
+        inset 2px 0 4px rgba(255,255,255,0.3),
+        inset -1px 0 2px rgba(0,0,0,0.1),
+        0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* 맥주 액체 */
+    .cell::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 3px;
+      right: 3px;
+      top: 28%;
+      background: linear-gradient(
+        to top,
+        var(--beer-dark) 0%,
+        var(--beer-mid) 35%,
+        var(--beer-light) 70%,
+        var(--foam) 100%
+      );
+      border-radius: 0 0 5px 5px;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.25);
+    }
+
+    /* 거품 상단 */
+    .cell::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      right: 4px;
+      height: 18%;
+      background: linear-gradient(to bottom, var(--foam), rgba(245,230,200,0.9));
+      border-radius: 2px 2px 50% 50%;
+      box-shadow: 0 1px 2px rgba(255,255,255,0.6);
+    }
+
+    .cell .num {
+      position: relative;
+      z-index: 2;
+      color: var(--text);
+      text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+    }
+
+    .cell.empty {
+      background: var(--empty-glass);
+      border-color: rgba(201, 214, 227, 0.5);
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .cell.empty .num {
+      color: transparent;
+    }
+
+    .cell.empty::before,
+    .cell.empty::after {
+      display: none;
+    }
+
+    .cell.selected {
+      border-color: #e94560;
+      box-shadow:
+        0 0 14px var(--selected-glow),
+        inset 2px 0 4px rgba(255,255,255,0.4);
+      transform: scale(1.06);
+    }
+
+    .cell.selected::before {
+      filter: brightness(1.15);
+    }
+
+    .cell.selected .num {
+      color: #1a1a1a;
+      text-shadow: 0 0 6px rgba(255,255,255,0.9);
+    }
+  </style>
+</head>
+<body>
+  <h1>맥주잔 게임</h1>
+  <p class="info">가로·세로·대각선으로 드래그해서 합이 10이 되면 사라져요!</p>
+  <p><img src="img/me.jpg" width="100" height="100"></p
+  <div class="sum-display" id="sumDisplay"></div>
+  <div class="grid-wrap">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <script>
+    const COLS = 15;
+    const ROWS = 10;
+    const TARGET = 10;
+
+    const gridEl = document.getElementById('grid');
+    const sumDisplayEl = document.getElementById('sumDisplay');
+
+    let cells = [];
+    let dragStart = null;
+    let selectedSet = new Set();
+
+    function random1to9() {
+      return Math.floor(Math.random() * 9) + 1;
+    }
+
+    function createGrid() {
+      gridEl.innerHTML = '';
+      cells = [];
+      for (let r = 0; r < ROWS; r++) {
+        cells[r] = [];
+        for (let c = 0; c < COLS; c++) {
+          const value = random1to9();
+          cells[r][c] = value;
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.innerHTML = '<span class="num">' + value + '</span>';
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function getCellsInLine(r0, c0, r1, c1) {
+      const list = [];
+      const dr = r1 - r0;
+      const dc = c1 - c0;
+      const steps = Math.max(Math.abs(dr), Math.abs(dc));
+      if (steps === 0) {
+        list.push({ r: r0, c: c0 });
+        return list;
+      }
+      const sr = dr === 0 ? 0 : (dr > 0 ? 1 : -1);
+      const sc = dc === 0 ? 0 : (dc > 0 ? 1 : -1);
+      for (let i = 0; i <= steps; i++) {
+        const r = r0 + sr * i;
+        const c = c0 + sc * i;
+        if (r >= 0 && r < ROWS && c >= 0 && c < COLS) list.push({ r, c });
+      }
+      return list;
+    }
+
+    function updateSelection(coordList) {
+      selectedSet.clear();
+      const cellEls = gridEl.querySelectorAll('.cell');
+      cellEls.forEach(el => el.classList.remove('selected'));
+
+      if (!coordList || coordList.length === 0) {
+        sumDisplayEl.innerHTML = '';
+        return;
+      }
+
+      let sum = 0;
+      coordList.forEach(({ r, c }) => {
+        if (cells[r] && cells[r][c] !== null) {
+          selectedSet.add(r * COLS + c);
+          sum += cells[r][c];
+        }
+      });
+
+      selectedSet.forEach(id => {
+        const r = Math.floor(id / COLS);
+        const c = id % COLS;
+        const idx = r * COLS + c;
+        cellEls[idx].classList.add('selected');
+      });
+
+      sumDisplayEl.innerHTML = '선택 합: <span class="value ' + (sum === TARGET ? 'valid' : 'invalid') + '">' + sum + '</span>' + (sum === TARGET ? ' ✓ 10!' : '');
+    }
+
+    function clearSelected() {
+      if (selectedSet.size === 0) return;
+      let sum = 0;
+      selectedSet.forEach(id => {
+        const r = Math.floor(id / COLS);
+        const c = id % COLS;
+        if (cells[r] && cells[r][c] !== null) sum += cells[r][c];
+      });
+
+      if (sum === TARGET) {
+        const cellEls = gridEl.querySelectorAll('.cell');
+        selectedSet.forEach(id => {
+          const r = Math.floor(id / COLS);
+          const c = id % COLS;
+          cells[r][c] = null;
+          const el = cellEls[id];
+          el.classList.add('empty');
+          el.innerHTML = '';
+        });
+      }
+
+      selectedSet.clear();
+      gridEl.querySelectorAll('.cell').forEach(el => el.classList.remove('selected'));
+      sumDisplayEl.innerHTML = '';
+    }
+
+    function getCellCoord(el) {
+      if (!el || !el.classList || !el.classList.contains('cell')) return null;
+      const r = parseInt(el.dataset.row, 10);
+      const c = parseInt(el.dataset.col, 10);
+      if (isNaN(r) || isNaN(c)) return null;
+      return { r, c };
+    }
+
+    gridEl.addEventListener('mousedown', (e) => {
+      const coord = getCellCoord(e.target.closest('.cell'));
+      if (!coord || cells[coord.r][coord.c] === null) return;
+      e.preventDefault();
+      dragStart = coord;
+      const list = getCellsInLine(coord.r, coord.c, coord.r, coord.c);
+      updateSelection(list);
+    });
+
+    gridEl.addEventListener('mousemove', (e) => {
+      if (dragStart === null) return;
+      const coord = getCellCoord(e.target.closest('.cell'));
+      if (!coord) return;
+      const list = getCellsInLine(dragStart.r, dragStart.c, coord.r, coord.c);
+      updateSelection(list);
+    });
+
+    gridEl.addEventListener('mouseup', () => {
+      if (dragStart !== null) {
+        clearSelected();
+        dragStart = null;
+      }
+    });
+
+    gridEl.addEventListener('mouseleave', () => {
+      if (dragStart !== null) {
+        clearSelected();
+        dragStart = null;
+      }
+    });
+
+    function getCellFromPoint(clientX, clientY) {
+      const el = document.elementFromPoint(clientX, clientY);
+      return el ? el.closest('.cell') : null;
+    }
+
+    gridEl.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      const cell = getCellFromPoint(t.clientX, t.clientY);
+      const coord = getCellCoord(cell);
+      if (!coord || cells[coord.r][coord.c] === null) return;
+      e.preventDefault();
+      dragStart = coord;
+      updateSelection(getCellsInLine(coord.r, coord.c, coord.r, coord.c));
+    }, { passive: false });
+
+    gridEl.addEventListener('touchmove', (e) => {
+      if (dragStart === null) return;
+      const t = e.touches[0];
+      const cell = getCellFromPoint(t.clientX, t.clientY);
+      const coord = getCellCoord(cell);
+      if (coord) {
+        e.preventDefault();
+        updateSelection(getCellsInLine(dragStart.r, dragStart.c, coord.r, coord.c));
+      }
+    }, { passive: false });
+
+    gridEl.addEventListener('touchend', (e) => {
+      if (dragStart !== null) {
+        clearSelected();
+        dragStart = null;
+      }
+    });
+
+    createGrid();
+  </script>
+</body>
+</html>
