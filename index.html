@@ -82,8 +82,8 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(15, 38px);
-      grid-template-rows: repeat(10, 48px);
+      grid-template-columns: repeat(10, 38px);
+      grid-template-rows: repeat(8, 48px);
       gap: 6px;
       user-select: none;
       touch-action: none;
@@ -187,15 +187,16 @@
 <body>
   <h1>마셔 게임</h1>
   <p class="info">가로·세로·대각선으로 드래그해서 합이 10이 되면 사라져요!</p>
-  <p class="info">Made by <img src="img/me.jpg" width="100" height="100"></p
   <div class="sum-display" id="sumDisplay"></div>
   <div class="grid-wrap">
     <div class="grid" id="grid"></div>
   </div>
+  <p class="info">Made by</p>
+  <p><img src="img/me.jpg" width="100" height="100"></p>
 
   <script>
-    const COLS = 15;
-    const ROWS = 10;
+    const COLS = 10;
+    const ROWS = 8;
     const TARGET = 10;
 
     const gridEl = document.getElementById('grid');
